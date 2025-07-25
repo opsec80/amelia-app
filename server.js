@@ -173,7 +173,10 @@ app.get('/api/tasks/:id', async (req, res) => {
 app.post('/api/tasks', async (req, res) => {
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
-        const task = { id: Date.now().toString(), ...req.body, completed: false, value: 0 };
+        // Generate new ID by incrementing the highest existing ID
+        const maxId = tasks.length > 0 ? Math.max(...tasks.map(t => parseInt(t.id) || 0)) : 0;
+        const newId = (maxId + 1).toString();
+        const task = { id: newId, ...req.body, completed: false, value: 0 };
         tasks.push(task);
         await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
         await calculateTaskValues();
@@ -239,4 +242,8 @@ app.post('/api/reset', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Start server
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    initTasksFile();
+});
