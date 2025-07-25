@@ -133,6 +133,10 @@ body.dark-mode h1, body.dark-mode h2, body.dark-mode h3 {
     color: #F8C8DC; /* Pastel pink in dark mode */
 }
 
+body.dark-mode .fixed-form h2 {
+    color: #C1E1C1; /* Pastel green in dark mode */
+}
+
 input[type="file"] {
     display: none;
 }
