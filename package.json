@@ -1,5 +1,5 @@
 {
-  "name": "household-tasks-app",
+  "name": "amelia-app",
   "version": "1.0.0",
   "description": "Household tasks app with gamification",
   "main": "server.js",
