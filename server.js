@@ -22,7 +22,7 @@ async function retryOperation(operation, maxRetries = 3, delay = 100) {
     }
 }
 
-async function getNextId(tasks) {
+function getNextId(tasks) {
     const validIds = tasks.map(t => parseInt(t.id)).filter(id => !isNaN(id) && id > 0).sort((a, b) => a - b);
     let nextId = 1;
     for (const id of validIds) {
@@ -92,14 +92,14 @@ async function generateRecurringTasks() {
         let updated = false;
         const nonGeneratedTasks = tasks.filter(task => !task.generated);
         const newTasks = [...nonGeneratedTasks];
-        let nextId = await getNextId(tasks);
+        let nextId = getNextId(tasks);
         nonGeneratedTasks.forEach(task => {
             if (task.month === month && task.recurring !== 'none') {
                 if (task.recurring === 'daily') {
                     for (let i = 1; i <= daysInMonth; i++) {
                         const dueDate = `${month}-${String(i).padStart(2, '0')}`;
                         newTasks.push({
-                            id: nextId.toString(),
+                            id: nextId,
                             name: `${task.name} (Day ${i})`,
                             size: task.size || 'small',
                             value: task.value || 0,
@@ -110,13 +110,13 @@ async function generateRecurringTasks() {
                             generated: true,
                             userName: task.userName
                         });
-                        nextId = await getNextId(newTasks); // Get next available ID
+                        nextId = getNextId(newTasks);
                     }
                 } else if (task.recurring === 'weekly') {
                     for (let i = 1; i <= 4; i++) {
                         const dueDate = `${month}-${String(i * 7).padStart(2, '0')}`;
                         newTasks.push({
-                            id: nextId.toString(),
+                            id: nextId,
                             name: `${task.name} (Week ${i})`,
                             size: task.size || 'small',
                             value: task.value || 0,
@@ -127,12 +127,12 @@ async function generateRecurringTasks() {
                             generated: true,
                             userName: task.userName
                         });
-                        nextId = await getNextId(newTasks);
+                        nextId = getNextId(newTasks);
                     }
                 } else if (task.recurring === 'monthly') {
                     const dueDate = `${month}-${String(task.dueDate.split('-')[2]).padStart(2, '0')}`;
                     newTasks.push({
-                        id: nextId.toString(),
+                        id: nextId,
                         name: `${task.name} (Monthly)`,
                         size: task.size || 'small',
                         value: task.value || 0,
@@ -143,7 +143,7 @@ async function generateRecurringTasks() {
                         generated: true,
                         userName: task.userName
                     });
-                    nextId = await getNextId(newTasks);
+                    nextId = getNextId(newTasks);
                 }
             }
         });
@@ -186,7 +186,7 @@ app.get('/api/tasks/:id', async (req, res) => {
 app.post('/api/tasks', async (req, res) => {
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
-        const newId = await getNextId(tasks);
+        const newId = getNextId(tasks);
         const task = { 
             id: newId, 
             ...req.body, 
