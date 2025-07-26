@@ -1,7 +1,7 @@
 const express = require('express');
 const fs = require('fs').promises;
 const path = require('path');
-const crypto = require('crypto'); // Added for UUID generation
+const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -60,7 +60,7 @@ async function calculateTaskValues() {
         });
         await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
     } catch (error) {
-        console.error('Error calculating task values:', error);
+        console.error('Error calculating task values:', error.message, error.stack);
     }
 }
 
@@ -79,12 +79,16 @@ async function generateRecurringTasks() {
 
         // Generate recurring tasks for the current month
         nonGeneratedTasks.forEach(task => {
+            if (!task) {
+                console.error('Undefined task encountered in generateRecurringTasks');
+                return;
+            }
             if (task.month === month && task.recurring !== 'none') {
                 if (task.recurring === 'daily') {
                     for (let i = 1; i <= daysInMonth; i++) {
                         const dueDate = `${month}-${String(i).padStart(2, '0')}`;
                         newTasks.push({
-                            id: crypto.randomUUID(), // Use UUID for recurring tasks
+                            id: crypto.randomUUID(),
                             name: `${task.name} (Day ${i})`,
                             size: task.size,
                             value: task.value || 0,
@@ -93,14 +97,14 @@ async function generateRecurringTasks() {
                             completed: false,
                             dueDate,
                             generated: true,
-                            userName: task.userName
+                            userName: task.userName || null // Handle undefined userName
                         });
                     }
                 } else if (task.recurring === 'weekly') {
                     for (let i = 1; i <= 4; i++) {
                         const dueDate = `${month}-${String(i * 7).padStart(2, '0')}`;
                         newTasks.push({
-                            id: crypto.randomUUID(), // Use UUID for recurring tasks
+                            id: crypto.randomUUID(),
                             name: `${task.name} (Week ${i})`,
                             size: task.size,
                             value: task.value || 0,
@@ -109,13 +113,13 @@ async function generateRecurringTasks() {
                             completed: false,
                             dueDate,
                             generated: true,
-                            userName: task.userName
+                            userName: task.userName || null // Handle undefined userName
                         });
                     }
                 } else if (task.recurring === 'monthly') {
                     const dueDate = `${month}-${String(task.dueDate.split('-')[2]).padStart(2, '0')}`;
                     newTasks.push({
-                        id: crypto.randomUUID(), // Use UUID for recurring tasks
+                        id: crypto.randomUUID(),
                         name: `${task.name} (Monthly)`,
                         size: task.size,
                         value: task.value || 0,
@@ -124,7 +128,7 @@ async function generateRecurringTasks() {
                         completed: false,
                         dueDate,
                         generated: true,
-                        userName: task.userName
+                        userName: task.userName || null // Handle undefined userName
                     });
                 }
             }
@@ -138,7 +142,7 @@ async function generateRecurringTasks() {
 
         return updated;
     } catch (error) {
-        console.error('Error generating recurring tasks:', error);
+        console.error('Error generating recurring tasks:', error.message, error.stack);
         return false;
     }
 }
@@ -151,7 +155,7 @@ app.get('/api/tasks', async (req, res) => {
         const month = req.query.month;
         res.json(month ? tasks.filter(t => t.month === month) : tasks);
     } catch (error) {
-        console.error('Error fetching tasks:', error);
+        console.error('Error fetching tasks:', error.message, error.stack);
         res.status(500).json({ error: 'Failed to load tasks' });
     }
 });
@@ -166,7 +170,7 @@ app.get('/api/tasks/:id', async (req, res) => {
             res.status(404).json({ error: 'Task not found' });
         }
     } catch (error) {
-        console.error('Error fetching task:', error);
+        console.error('Error fetching task:', error.message, error.stack);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -174,13 +178,13 @@ app.get('/api/tasks/:id', async (req, res) => {
 app.post('/api/tasks', async (req, res) => {
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
-        const task = { id: crypto.randomUUID(), ...req.body, completed: false, value: 0 }; // Use UUID for new tasks
+        const task = { id: crypto.randomUUID(), ...req.body, completed: false, value: 0 };
         tasks.push(task);
         await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
         await calculateTaskValues();
         res.status(201).send();
     } catch (error) {
-        console.error('Error adding task:', error);
+        console.error('Error adding task:', error.message, error.stack);
         res.status(500).json({ error: 'Failed to add task' });
     }
 });
@@ -199,7 +203,7 @@ app.patch('/api/tasks/:id', async (req, res) => {
             res.status(404).json({ error: 'Task not found' });
         }
     } catch (error) {
-        console.error('Error updating task:', error);
+        console.error('Error updating task:', error.message, error.stack);
         res.status(500).json({ error: 'Failed to update task' });
     }
 });
@@ -212,7 +216,7 @@ app.delete('/api/tasks/:id', async (req, res) => {
         await calculateTaskValues();
         res.status(200).send();
     } catch (error) {
-        console.error('Error deleting task:', error);
+        console.error('Error deleting task:', error.message, error.stack);
         res.status(500).json({ error: 'Failed to delete task' });
     }
 });
@@ -235,7 +239,7 @@ app.post('/api/reset', async (req, res) => {
         await calculateTaskValues();
         res.status(200).send();
     } catch (error) {
-        console.error('Error resetting tasks:', error);
+        console.error('Error resetting tasks:', error.message, error.stack);
         res.status(500).json({ error: 'Failed to reset tasks' });
     }
 });
