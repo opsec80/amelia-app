@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs').promises;
 const path = require('path');
+const crypto = require('crypto'); // Added for UUID generation
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -21,28 +22,28 @@ async function initTasksFile() {
             const rootTasks = await fs.readFile(path.join(__dirname, 'tasks.json'), 'utf8');
             await fs.writeFile(TASKS_FILE, rootTasks);
         } catch {
-                    await fs.writeFile(TASKS_FILE, JSON.stringify([
-                        {"id":"550e8400-e29b-41d4-a716-446655440001","name":"Pay Rent","size":"large","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-01"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440002","name":"Pay Phone Bill","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-05"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440003","name":"Pay Electricity Bill","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-10"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440004","name":"Laundry","size":"small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-07"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440005","name":"Folding and Putting Away Laundry","size":"small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-07"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440006","name":"Do Dishes","size":"small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-15"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440007","name":"Feed Dogs Breakfast","size":"extra-small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440008","name":"Feed Dogs Dinner","size":"extra-small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440009","name":"Order Medicine","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-10"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440010","name":"Pick up Medicine","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-12"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440011","name":"Eat Breakfast","size":"extra-small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440012","name":"Eat Dinner","size":"extra-small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440013","name":"Sweep Floors","size":"small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-20"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440014","name":"Vacuum","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-20"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440015","name":"Mop","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-20"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440016","name":"Shower or Bath","size":"small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440017","name":"Grocery Shop","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-15"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440018","name":"Take Dogs for Morning Walk","size":"extra-small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
-                        {"id":"550e8400-e29b-41d4-a716-446655440019","name":"Take Dogs for Afternoon or Evening Walk","size":"extra-small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"}
-                    ], null, 2));
-                }
+            await fs.writeFile(TASKS_FILE, JSON.stringify([
+                {"id":"550e8400-e29b-41d4-a716-446655440001","name":"Pay Rent","size":"large","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-01"},
+                {"id":"550e8400-e29b-41d4-a716-446655440002","name":"Pay Phone Bill","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-05"},
+                {"id":"550e8400-e29b-41d4-a716-446655440003","name":"Pay Electricity Bill","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-10"},
+                {"id":"550e8400-e29b-41d4-a716-446655440004","name":"Laundry","size":"small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-07"},
+                {"id":"550e8400-e29b-41d4-a716-446655440005","name":"Folding and Putting Away Laundry","size":"small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-07"},
+                {"id":"550e8400-e29b-41d4-a716-446655440006","name":"Do Dishes","size":"small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-15"},
+                {"id":"550e8400-e29b-41d4-a716-446655440007","name":"Feed Dogs Breakfast","size":"extra-small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
+                {"id":"550e8400-e29b-41d4-a716-446655440008","name":"Feed Dogs Dinner","size":"extra-small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
+                {"id":"550e8400-e29b-41d4-a716-446655440009","name":"Order Medicine","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-10"},
+                {"id":"550e8400-e29b-41d4-a716-446655440010","name":"Pick up Medicine","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-12"},
+                {"id":"550e8400-e29b-41d4-a716-446655440011","name":"Eat Breakfast","size":"extra-small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
+                {"id":"550e8400-e29b-41d4-a716-446655440012","name":"Eat Dinner","size":"extra-small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
+                {"id":"550e8400-e29b-41d4-a716-446655440013","name":"Sweep Floors","size":"small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-20"},
+                {"id":"550e8400-e29b-41d4-a716-446655440014","name":"Vacuum","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-20"},
+                {"id":"550e8400-e29b-41d4-a716-446655440015","name":"Mop","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-20"},
+                {"id":"550e8400-e29b-41d4-a716-446655440016","name":"Shower or Bath","size":"small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
+                {"id":"550e8400-e29b-41d4-a716-446655440017","name":"Grocery Shop","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-15"},
+                {"id":"550e8400-e29b-41d4-a716-446655440018","name":"Take Dogs for Morning Walk","size":"extra-small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
+                {"id":"550e8400-e29b-41d4-a716-446655440019","name":"Take Dogs for Afternoon or Evening Walk","size":"extra-small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"}
+            ], null, 2));
+        }
         await calculateTaskValues();
     }
 }
@@ -83,7 +84,7 @@ async function generateRecurringTasks() {
                     for (let i = 1; i <= daysInMonth; i++) {
                         const dueDate = `${month}-${String(i).padStart(2, '0')}`;
                         newTasks.push({
-                            id: `${task.id}-${i}`,
+                            id: crypto.randomUUID(), // Use UUID for recurring tasks
                             name: `${task.name} (Day ${i})`,
                             size: task.size,
                             value: task.value || 0,
@@ -99,7 +100,7 @@ async function generateRecurringTasks() {
                     for (let i = 1; i <= 4; i++) {
                         const dueDate = `${month}-${String(i * 7).padStart(2, '0')}`;
                         newTasks.push({
-                            id: `${task.id}-${i}`,
+                            id: crypto.randomUUID(), // Use UUID for recurring tasks
                             name: `${task.name} (Week ${i})`,
                             size: task.size,
                             value: task.value || 0,
@@ -114,7 +115,7 @@ async function generateRecurringTasks() {
                 } else if (task.recurring === 'monthly') {
                     const dueDate = `${month}-${String(task.dueDate.split('-')[2]).padStart(2, '0')}`;
                     newTasks.push({
-                        id: `${task.id}-monthly`,
+                        id: crypto.randomUUID(), // Use UUID for recurring tasks
                         name: `${task.name} (Monthly)`,
                         size: task.size,
                         value: task.value || 0,
@@ -173,10 +174,7 @@ app.get('/api/tasks/:id', async (req, res) => {
 app.post('/api/tasks', async (req, res) => {
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
-        // Generate new ID by incrementing the highest existing ID
-        const maxId = tasks.length > 0 ? Math.max(...tasks.map(t => parseInt(t.id) || 0)) : 0;
-        const newId = (maxId + 1).toString();
-        const task = { id: newId, ...req.body, completed: false, value: 0 };
+        const task = { id: crypto.randomUUID(), ...req.body, completed: false, value: 0 }; // Use UUID for new tasks
         tasks.push(task);
         await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
         await calculateTaskValues();
