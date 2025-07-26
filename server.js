@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs').promises;
 const path = require('path');
+const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -8,6 +9,11 @@ app.use(express.json({ limit: '5mb' }));
 app.use(express.static(__dirname));
 
 const TASKS_FILE = path.join(__dirname, 'data', 'tasks.json');
+
+// Generate UUID v4
+function generateUUID() {
+    return crypto.randomUUID();
+}
 
 // Retry mechanism for file operations
 async function retryOperation(operation, maxRetries = 3, delay = 100) {
@@ -20,16 +26,6 @@ async function retryOperation(operation, maxRetries = 3, delay = 100) {
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
-}
-
-function getNextId(tasks) {
-    const validIds = tasks.map(t => parseInt(t.id)).filter(id => !isNaN(id) && id > 0).sort((a, b) => a - b);
-    let nextId = 1;
-    for (const id of validIds) {
-        if (id > nextId) break; // Found a gap
-        nextId = id + 1; // Continue from highest consecutive ID
-    }
-    return nextId.toString();
 }
 
 async function initTasksFile() {
@@ -92,14 +88,13 @@ async function generateRecurringTasks() {
         let updated = false;
         const nonGeneratedTasks = tasks.filter(task => !task.generated);
         const newTasks = [...nonGeneratedTasks];
-        let nextId = getNextId(tasks);
         nonGeneratedTasks.forEach(task => {
             if (task.month === month && task.recurring !== 'none') {
                 if (task.recurring === 'daily') {
                     for (let i = 1; i <= daysInMonth; i++) {
                         const dueDate = `${month}-${String(i).padStart(2, '0')}`;
                         newTasks.push({
-                            id: nextId,
+                            id: generateUUID(),
                             name: `${task.name} (Day ${i})`,
                             size: task.size || 'small',
                             value: task.value || 0,
@@ -110,13 +105,12 @@ async function generateRecurringTasks() {
                             generated: true,
                             userName: task.userName
                         });
-                        nextId = getNextId(newTasks);
                     }
                 } else if (task.recurring === 'weekly') {
                     for (let i = 1; i <= 4; i++) {
                         const dueDate = `${month}-${String(i * 7).padStart(2, '0')}`;
                         newTasks.push({
-                            id: nextId,
+                            id: generateUUID(),
                             name: `${task.name} (Week ${i})`,
                             size: task.size || 'small',
                             value: task.value || 0,
@@ -127,12 +121,11 @@ async function generateRecurringTasks() {
                             generated: true,
                             userName: task.userName
                         });
-                        nextId = getNextId(newTasks);
                     }
                 } else if (task.recurring === 'monthly') {
-                    const dueDate = `${month}-${String(task.dueDate.split('-')[2]).padStart(2, '0')}`;
+                    const dueDate = task.dueDate ? `${month}-${String(task.dueDate.split('-')[2]).padStart(2, '0')}` : `${month}-01`;
                     newTasks.push({
-                        id: nextId,
+                        id: generateUUID(),
                         name: `${task.name} (Monthly)`,
                         size: task.size || 'small',
                         value: task.value || 0,
@@ -143,7 +136,6 @@ async function generateRecurringTasks() {
                         generated: true,
                         userName: task.userName
                     });
-                    nextId = getNextId(newTasks);
                 }
             }
         });
@@ -186,7 +178,7 @@ app.get('/api/tasks/:id', async (req, res) => {
 app.post('/api/tasks', async (req, res) => {
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
-        const newId = getNextId(tasks);
+        const newId = generateUUID();
         const task = { 
             id: newId, 
             ...req.body, 
