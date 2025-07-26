@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(__dirname));
 app.use('/images', express.static('/app/data/images')); // Serve images from persistent disk
-console.log("Deployed server.js version: 2025-07-25-v4");
+console.log("Deployed server.js version: 2025-07-25-v5");
 
 const TASKS_FILE = '/app/data/tasks.json';
 const IMAGES_DIR = '/app/data/images';
@@ -288,6 +288,7 @@ app.delete('/api/tasks/:id', async (req, res) => {
 });
 
 app.post('/api/reset', async (req, res) => {
+    console.log("Entering /api/reset endpoint");
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const now = new Date();
