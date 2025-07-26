@@ -8,18 +8,20 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(__dirname));
 app.use('/images', express.static('/app/data/images')); // Serve images from persistent disk
-console.log("Deployed server.js version: 2025-07-25-v5");
+console.log("Deployed server.js version: 2025-07-25-v8");
 
 const TASKS_FILE = '/app/data/tasks.json';
 const IMAGES_DIR = '/app/data/images';
 
 // Generate UUID v4
 function generateUUID() {
+    console.log("Entering generateUUID");
     return crypto.randomUUID();
 }
 
 // Retry mechanism for file operations
 async function retryOperation(operation, maxRetries = 3, delay = 100) {
+    console.log("Entering retryOperation");
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             return await operation();
@@ -37,6 +39,7 @@ async function retryOperation(operation, maxRetries = 3, delay = 100) {
 }
 
 async function initTasksFile() {
+    console.log("Entering initTasksFile");
     return retryOperation(async () => {
         try {
             await fs.access(TASKS_FILE);
@@ -83,6 +86,7 @@ async function initTasksFile() {
 }
 
 async function calculateTaskValues() {
+    console.log("Entering calculateTaskValues");
     return retryOperation(async () => {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const weights = { 'extra-small': 1, 'small': 2, 'medium': 4, 'large': 8 };
@@ -101,6 +105,7 @@ async function calculateTaskValues() {
 }
 
 async function generateRecurringTasks() {
+    console.log("Entering generateRecurringTasks");
     return retryOperation(async () => {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const now = new Date();
@@ -170,6 +175,7 @@ async function generateRecurringTasks() {
 }
 
 app.get('/api/tasks', async (req, res) => {
+    console.log("Entering GET /api/tasks");
     try {
         await generateRecurringTasks();
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
@@ -182,6 +188,7 @@ app.get('/api/tasks', async (req, res) => {
 });
 
 app.get('/api/tasks/:id', async (req, res) => {
+    console.log("Entering GET /api/tasks/:id");
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const task = tasks.find(t => t.id === req.params.id);
@@ -197,6 +204,7 @@ app.get('/api/tasks/:id', async (req, res) => {
 });
 
 app.post('/api/tasks', async (req, res) => {
+    console.log("Entering POST /api/tasks");
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const newId = generateUUID();
@@ -223,6 +231,7 @@ app.post('/api/tasks', async (req, res) => {
 });
 
 app.patch('/api/tasks/:id', async (req, res) => {
+    console.log("Entering PATCH /api/tasks/:id");
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const task = tasks.find(t => t.id === req.params.id);
@@ -261,6 +270,7 @@ app.patch('/api/tasks/:id', async (req, res) => {
 });
 
 app.delete('/api/tasks/:id', async (req, res) => {
+    console.log("Entering DELETE /api/tasks/:id");
     try {
         let tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const task = tasks.find(t => t.id === req.params.id);
@@ -288,7 +298,7 @@ app.delete('/api/tasks/:id', async (req, res) => {
 });
 
 app.post('/api/reset', async (req, res) => {
-    console.log("Entering /api/reset endpoint");
+    console.log("Entering POST /api/reset");
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const now = new Date();
