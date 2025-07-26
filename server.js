@@ -9,6 +9,7 @@ app.use(express.json({ limit: '5mb' }));
 app.use(express.static(__dirname));
 
 const TASKS_FILE = path.join(__dirname, 'data', 'tasks.json');
+const IMAGES_DIR = path.join(__dirname, 'data', 'images');
 
 // Generate UUID v4
 function generateUUID() {
@@ -21,6 +22,11 @@ async function retryOperation(operation, maxRetries = 3, delay = 100) {
         try {
             return await operation();
         } catch (error) {
+            if (error.code === 'ENOENT') {
+                await fs.mkdir(path.dirname(TASKS_FILE), { recursive: true });
+                await fs.writeFile(TASKS_FILE, JSON.stringify([], null, 2));
+                return await operation();
+            }
             if (attempt === maxRetries) throw error;
             console.warn(`Retrying operation (attempt ${attempt}/${maxRetries}):`, error.message);
             await new Promise(resolve => setTimeout(resolve, delay));
@@ -34,34 +40,42 @@ async function initTasksFile() {
             await fs.access(TASKS_FILE);
             const content = await fs.readFile(TASKS_FILE, 'utf8');
             JSON.parse(content);
-        } catch {
+        } catch (error) {
+            if (error.code !== 'ENOENT') throw error;
             try {
-                const rootTasks = await fs.readFile(path.join(__dirname, 'tasks.json'), 'utf8');
-                await fs.writeFile(TASKS_FILE, rootTasks);
-            } catch {
-                await fs.writeFile(TASKS_FILE, JSON.stringify([
-                    {"id":"1","name":"Pay Rent","size":"large","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-01"},
-                    {"id":"2","name":"Pay Phone Bill","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-05"},
-                    {"id":"3","name":"Pay Electricity Bill","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-10"},
-                    {"id":"4","name":"Laundry","size":"small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-07"},
-                    {"id":"5","name":"Folding and Putting Away Laundry","size":"small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-07"},
-                    {"id":"6","name":"Do Dishes","size":"small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-15"},
-                    {"id":"7","name":"Feed Dogs Breakfast","size":"extra-small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
-                    {"id":"8","name":"Feed Dogs Dinner","size":"extra-small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
-                    {"id":"9","name":"Order Medicine","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-10"},
-                    {"id":"10","name":"Pick up Medicine","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-12"},
-                    {"id":"11","name":"Eat Breakfast","size":"extra-small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
-                    {"id":"12","name":"Eat Dinner","size":"extra-small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
-                    {"id":"13","name":"Sweep Floors","size":"small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-20"},
-                    {"id":"14","name":"Vacuum","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-20"},
-                    {"id":"15","name":"Mop","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-20"},
-                    {"id":"16","name":"Shower or Bath","size":"small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
-                    {"id":"17","name":"Grocery Shop","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-15"},
-                    {"id":"18","name":"Take Dogs for Morning Walk","size":"extra-small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
-                    {"id":"19","name":"Take Dogs for Afternoon or Evening Walk","size":"extra-small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"}
-                ], null, 2));
+                const rootTasks = await fs.readFile(path.join(__dirname, 'tasks.json'), 'utf8').catch(() => null);
+                if (rootTasks) {
+                    await fs.writeFile(TASKS_FILE, rootTasks);
+                } else {
+                    await fs.mkdir(path.dirname(TASKS_FILE), { recursive: true });
+                    await fs.mkdir(IMAGES_DIR, { recursive: true });
+                    await fs.writeFile(TASKS_FILE, JSON.stringify([
+                        {"id":"550e8400-e29b-41d4-a716-446655440001","name":"Pay Rent","size":"large","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-01"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440002","name":"Pay Phone Bill","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-05"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440003","name":"Pay Electricity Bill","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-10"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440004","name":"Laundry","size":"small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-07"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440005","name":"Folding and Putting Away Laundry","size":"small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-07"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440006","name":"Do Dishes","size":"small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-15"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440007","name":"Feed Dogs Breakfast","size":"extra-small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440008","name":"Feed Dogs Dinner","size":"extra-small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440009","name":"Order Medicine","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-10"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440010","name":"Pick up Medicine","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-12"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440011","name":"Eat Breakfast","size":"extra-small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440012","name":"Eat Dinner","size":"extra-small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440013","name":"Sweep Floors","size":"small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-20"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440014","name":"Vacuum","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-20"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440015","name":"Mop","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-20"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440016","name":"Shower or Bath","size":"small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440017","name":"Grocery Shop","size":"medium","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-15"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440018","name":"Take Dogs for Morning Walk","size":"extra-small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"},
+                        {"id":"550e8400-e29b-41d4-a716-446655440019","name":"Take Dogs for Afternoon or Evening Walk","size":"extra-small","value":0,"month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"}
+                    ], null, 2));
+                }
+                await calculateTaskValues();
+            } catch (err) {
+                console.error('Error initializing tasks file:', err);
+                throw err;
             }
-            await calculateTaskValues();
         }
     });
 }
@@ -74,6 +88,11 @@ async function calculateTaskValues() {
         const unitValue = totalWeight ? 3000 / totalWeight : 0;
         tasks.forEach(task => {
             task.value = Math.round(unitValue * (weights[task.size] || 1) * 100) / 100;
+            task.size = task.size || 'small';
+            task.completed = task.completed || false;
+            task.completedDate = task.completedDate && !isNaN(new Date(task.completedDate)) ? task.completedDate : null;
+            task.picture = task.picture && typeof task.picture === 'string' ? task.picture : null;
+            task.userName = task.userName || null;
         });
         await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
     });
@@ -103,7 +122,7 @@ async function generateRecurringTasks() {
                             completed: false,
                             dueDate,
                             generated: true,
-                            userName: task.userName
+                            userName: task.userName || null
                         });
                     }
                 } else if (task.recurring === 'weekly') {
@@ -119,7 +138,7 @@ async function generateRecurringTasks() {
                             completed: false,
                             dueDate,
                             generated: true,
-                            userName: task.userName
+                            userName: task.userName || null
                         });
                     }
                 } else if (task.recurring === 'monthly') {
@@ -134,7 +153,7 @@ async function generateRecurringTasks() {
                         completed: false,
                         dueDate,
                         generated: true,
-                        userName: task.userName
+                        userName: task.userName || null
                     });
                 }
             }
@@ -181,10 +200,14 @@ app.post('/api/tasks', async (req, res) => {
         const newId = generateUUID();
         const task = { 
             id: newId, 
-            ...req.body, 
-            completed: false, 
+            name: req.body.name || 'Unnamed Task',
+            size: req.body.size || 'small',
             value: 0,
-            size: req.body.size || 'small'
+            month: req.body.month || null,
+            recurring: req.body.recurring || 'none',
+            completed: false,
+            dueDate: req.body.dueDate || null,
+            userName: req.body.userName || null
         };
         tasks.push(task);
         await retryOperation(async () => {
@@ -203,9 +226,26 @@ app.patch('/api/tasks/:id', async (req, res) => {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const task = tasks.find(t => t.id === req.params.id);
         if (task) {
-            Object.assign(task, req.body);
+            if (req.body.picture) {
+                const matches = req.body.picture.match(/^data:image\/(jpeg|png|heic|heif);base64,(.+)$/);
+                if (!matches || matches[2].length > 500 * 1024) {
+                    return res.status(400).json({ error: 'Invalid or oversized image (max 500KB)' });
+                }
+                const buffer = Buffer.from(matches[2], 'base64');
+                const filePath = path.join(IMAGES_DIR, `task_${task.id}.${matches[1]}`);
+                await fs.writeFile(filePath, buffer);
+                task.picture = `/data/images/task_${task.id}.${matches[1]}`;
+            }
+            Object.assign(task, {
+                name: req.body.name !== undefined ? req.body.name : task.name,
+                size: req.body.size || task.size || 'small',
+                month: req.body.month !== undefined ? req.body.month : task.month,
+                recurring: req.body.recurring !== undefined ? req.body.recurring : task.recurring,
+                completed: req.body.completed !== undefined ? req.body.completed : task.completed,
+                completedDate: req.body.completedDate && !isNaN(new Date(req.body.completedDate)) ? req.body.completedDate : task.completed ? new Date().toISOString() : task.completedDate,
+                userName: req.body.userName !== undefined ? req.body.userName : task.userName
+            });
             task.value = task.value || 0;
-            task.size = task.size || 'small';
             await retryOperation(async () => {
                 await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
                 await calculateTaskValues();
@@ -223,12 +263,24 @@ app.patch('/api/tasks/:id', async (req, res) => {
 app.delete('/api/tasks/:id', async (req, res) => {
     try {
         let tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
-        tasks = tasks.filter(task => task.id !== req.params.id);
-        await retryOperation(async () => {
-            await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
-            await calculateTaskValues();
-        });
-        res.status(200).send();
+        const task = tasks.find(t => t.id === req.params.id);
+        if (task) {
+            if (task.picture) {
+                try {
+                    await fs.unlink(path.join(__dirname, task.picture));
+                } catch (err) {
+                    console.warn('Failed to delete image file:', err);
+                }
+            }
+            tasks = tasks.filter(t => t.id !== req.params.id);
+            await retryOperation(async () => {
+                await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
+                await calculateTaskValues();
+            });
+            res.status(200).send();
+        } else {
+            res.status(404).json({ error: 'Task not found' });
+        }
     } catch (error) {
         console.error('Error deleting task:', error);
         res.status(500).json({ error: `Failed to delete task: ${error.message}` });
@@ -243,7 +295,12 @@ app.post('/api/reset', async (req, res) => {
         tasks.forEach(t => {
             if (t.recurring === 'none') {
                 t.completed = false;
-                t.picture = null;
+                if (t.picture) {
+                    try {
+                        fs.unlink(path.join(__dirname, t.picture)).catch(err => console.warn('Failed to delete image file:', err));
+                    }
+                    t.picture = null;
+                }
                 t.completedDate = null;
                 t.month = nextMonth;
                 t.value = 0;
