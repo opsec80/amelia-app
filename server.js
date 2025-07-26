@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(__dirname));
 app.use('/images', express.static('/app/data/images')); // Serve images from persistent disk
+console.log("Deployed server.js version: 2025-07-25-v1");
 
 const TASKS_FILE = '/app/data/tasks.json';
 const IMAGES_DIR = '/app/data/images';
@@ -44,7 +45,7 @@ async function initTasksFile() {
         } catch (error) {
             if (error.code !== 'ENOENT') throw error;
             try {
-                const rootTasks = await fs.readFile(path.join(__dirname, 'tasks.json'), utf8').catch(() => null);
+                const rootTasks = await fs.readFile(path.join(__dirname, 'tasks.json'), 'utf8').catch(() => null);
                 if (rootTasks) {
                     await fs.writeFile(TASKS_FILE, rootTasks);
                 } else {
@@ -103,7 +104,7 @@ async function generateRecurringTasks() {
     return retryOperation(async () => {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const now = new Date();
-        const month = `${/CPATH>`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
         let updated = false;
         const nonGeneratedTasks = tasks.filter(task => !task.generated);
