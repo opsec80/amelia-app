@@ -1,59 +1,26 @@
 const express = require('express');
 const fs = require('fs').promises;
 const path = require('path');
-const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Increase payload limit to 5MB for image uploads
 app.use(express.json({ limit: '5mb' }));
-app.use(express.static(__dirname));
-app.use('/images', express.static('/app/data/images')); // Serve images from persistent disk
-console.log("Deployed server.js version: 2025-07-25-v8");
+app.use(express.static(__dirname)); // Serve static files
 
-const TASKS_FILE = '/app/data/tasks.json';
-const IMAGES_DIR = '/app/data/images';
+const TASKS_FILE = path.join(__dirname, 'data', 'tasks.json'); // Render disk path
 
-// Generate UUID v4
-function generateUUID() {
-    console.log("Entering generateUUID");
-    return crypto.randomUUID();
-}
-
-// Retry mechanism for file operations
-async function retryOperation(operation, maxRetries = 3, delay = 100) {
-    console.log("Entering retryOperation");
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            return await operation();
-        } catch (error) {
-            if (error.code === 'ENOENT') {
-                await fs.mkdir(path.dirname(TASKS_FILE), { recursive: true });
-                await fs.writeFile(TASKS_FILE, JSON.stringify([], null, 2));
-                return await operation();
-            }
-            if (attempt === maxRetries) throw error;
-            console.warn(`Retrying operation (attempt ${attempt}/${maxRetries}): ${error.message}`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-        }
-    }
-}
-
+// Initialize tasks.json if it doesn't exist
 async function initTasksFile() {
-    console.log("Entering initTasksFile");
-    return retryOperation(async () => {
+    try {
+        await fs.access(TASKS_FILE);
+        const content = await fs.readFile(TASKS_FILE, 'utf8');
+        JSON.parse(content); // Validate JSON
+    } catch {
         try {
-            await fs.access(TASKS_FILE);
-            const content = await fs.readFile(TASKS_FILE, 'utf8');
-            JSON.parse(content);
-        } catch (error) {
-            if (error.code !== 'ENOENT') throw error;
-            try {
-                const rootTasks = await fs.readFile(path.join(__dirname, 'tasks.json'), 'utf8').catch(() => null);
-                if (rootTasks) {
-                    await fs.writeFile(TASKS_FILE, rootTasks);
-                } else {
-                    await fs.mkdir(path.dirname(TASKS_FILE), { recursive: true });
-                    await fs.mkdir(IMAGES_DIR, { recursive: true });
+            const rootTasks = await fs.readFile(path.join(__dirname, 'tasks.json'), 'utf8');
+            await fs.writeFile(TASKS_FILE, rootTasks);
+        } catch {
                     await fs.writeFile(TASKS_FILE, JSON.stringify([
                         {"id":"550e8400-e29b-41d4-a716-446655440001","name":"Pay Rent","size":"large","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-01"},
                         {"id":"550e8400-e29b-41d4-a716-446655440002","name":"Pay Phone Bill","size":"medium","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-05"},
@@ -76,119 +43,119 @@ async function initTasksFile() {
                         {"id":"550e8400-e29b-41d4-a716-446655440019","name":"Take Dogs for Afternoon or Evening Walk","size":"extra-small","month":"2025-07","recurring":"none","completed":false,"dueDate":"2025-07-25"}
                     ], null, 2));
                 }
-                await calculateTaskValues();
-            } catch (err) {
-                console.error(`Error initializing tasks file: ${err.message}`);
-                throw err;
-            }
-        }
-    });
+        await calculateTaskValues();
+    }
 }
 
+// Calculate task values based on size
 async function calculateTaskValues() {
-    console.log("Entering calculateTaskValues");
-    return retryOperation(async () => {
+    try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const weights = { 'extra-small': 1, 'small': 2, 'medium': 4, 'large': 8 };
         const totalWeight = tasks.reduce((sum, task) => sum + (weights[task.size] || 1), 0);
         const unitValue = totalWeight ? 3000 / totalWeight : 0;
         tasks.forEach(task => {
-            task.value = Math.round(unitValue * (weights[task.size] || 1) * 100) / 100;
-            task.size = task.size || 'small';
-            task.completed = task.completed || false;
-            task.completedDate = task.completedDate && !isNaN(new Date(task.completedDate)) ? task.completedDate : null;
-            task.picture = task.picture && typeof task.picture === 'string' ? task.picture : null;
-            task.userName = task.userName || null;
+            task.value = Math.round(unitValue * (weights[task.size] || 1) * 100) / 100; // Ensure valid number
         });
         await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
-    });
+    } catch (error) {
+        console.error('Error calculating task values:', error);
+    }
 }
 
+// Generate recurring tasks
 async function generateRecurringTasks() {
-    console.log("Entering generateRecurringTasks");
-    return retryOperation(async () => {
+    try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const now = new Date();
         const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
         let updated = false;
+
+        // Remove old generated tasks for the current month
         const nonGeneratedTasks = tasks.filter(task => !task.generated);
         const newTasks = [...nonGeneratedTasks];
+
+        // Generate recurring tasks for the current month
         nonGeneratedTasks.forEach(task => {
             if (task.month === month && task.recurring !== 'none') {
                 if (task.recurring === 'daily') {
                     for (let i = 1; i <= daysInMonth; i++) {
                         const dueDate = `${month}-${String(i).padStart(2, '0')}`;
                         newTasks.push({
-                            id: generateUUID(),
+                            id: `${task.id}-${i}`,
                             name: `${task.name} (Day ${i})`,
-                            size: task.size || 'small',
+                            size: task.size,
                             value: task.value || 0,
                             month,
                             recurring: 'none',
                             completed: false,
                             dueDate,
                             generated: true,
-                            userName: task.userName || null
+                            userName: task.userName
                         });
                     }
                 } else if (task.recurring === 'weekly') {
                     for (let i = 1; i <= 4; i++) {
                         const dueDate = `${month}-${String(i * 7).padStart(2, '0')}`;
                         newTasks.push({
-                            id: generateUUID(),
+                            id: `${task.id}-${i}`,
                             name: `${task.name} (Week ${i})`,
-                            size: task.size || 'small',
+                            size: task.size,
                             value: task.value || 0,
                             month,
                             recurring: 'none',
                             completed: false,
                             dueDate,
                             generated: true,
-                            userName: task.userName || null
+                            userName: task.userName
                         });
                     }
                 } else if (task.recurring === 'monthly') {
-                    const dueDate = task.dueDate ? `${month}-${String(task.dueDate.split('-')[2]).padStart(2, '0')}` : `${month}-01`;
+                    const dueDate = `${month}-${String(task.dueDate.split('-')[2]).padStart(2, '0')}`;
                     newTasks.push({
-                        id: generateUUID(),
+                        id: `${task.id}-monthly`,
                         name: `${task.name} (Monthly)`,
-                        size: task.size || 'small',
+                        size: task.size,
                         value: task.value || 0,
                         month,
                         recurring: 'none',
                         completed: false,
                         dueDate,
                         generated: true,
-                        userName: task.userName || null
+                        userName: task.userName
                     });
                 }
             }
         });
+
         if (JSON.stringify(tasks) !== JSON.stringify(newTasks)) {
             updated = true;
             await fs.writeFile(TASKS_FILE, JSON.stringify(newTasks, null, 2));
             await calculateTaskValues();
         }
+
         return updated;
-    });
+    } catch (error) {
+        console.error('Error generating recurring tasks:', error);
+        return false;
+    }
 }
 
+// API routes
 app.get('/api/tasks', async (req, res) => {
-    console.log("Entering GET /api/tasks");
     try {
         await generateRecurringTasks();
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const month = req.query.month;
         res.json(month ? tasks.filter(t => t.month === month) : tasks);
     } catch (error) {
-        console.error(`Error fetching tasks: ${error.message}`);
-        res.status(500).json({ error: `Failed to load tasks: ${error.message}` });
+        console.error('Error fetching tasks:', error);
+        res.status(500).json({ error: 'Failed to load tasks' });
     }
 });
 
 app.get('/api/tasks/:id', async (req, res) => {
-    console.log("Entering GET /api/tasks/:id");
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const task = tasks.find(t => t.id === req.params.id);
@@ -198,107 +165,61 @@ app.get('/api/tasks/:id', async (req, res) => {
             res.status(404).json({ error: 'Task not found' });
         }
     } catch (error) {
-        console.error(`Error fetching task: ${error.message}`);
-        res.status(500).json({ error: `Server error: ${error.message}` });
+        console.error('Error fetching task:', error);
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
 app.post('/api/tasks', async (req, res) => {
-    console.log("Entering POST /api/tasks");
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
-        const newId = generateUUID();
-        const task = { 
-            id: newId, 
-            name: req.body.name || 'Unnamed Task',
-            size: req.body.size || 'small',
-            month: req.body.month || null,
-            recurring: req.body.recurring || 'none',
-            completed: false,
-            dueDate: req.body.dueDate || null,
-            userName: req.body.userName || null
-        };
+        // Generate new ID by incrementing the highest existing ID
+        const maxId = tasks.length > 0 ? Math.max(...tasks.map(t => parseInt(t.id) || 0)) : 0;
+        const newId = (maxId + 1).toString();
+        const task = { id: newId, ...req.body, completed: false, value: 0 };
         tasks.push(task);
-        await retryOperation(async () => {
-            await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
-            await calculateTaskValues();
-        });
+        await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
+        await calculateTaskValues();
         res.status(201).send();
     } catch (error) {
-        console.error(`Error adding task: ${error.message}`);
-        res.status(500).json({ error: `Failed to add task: ${error.message}` });
+        console.error('Error adding task:', error);
+        res.status(500).json({ error: 'Failed to add task' });
     }
 });
 
 app.patch('/api/tasks/:id', async (req, res) => {
-    console.log("Entering PATCH /api/tasks/:id");
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const task = tasks.find(t => t.id === req.params.id);
         if (task) {
-            if (req.body.picture) {
-                const matches = req.body.picture.match(/^data:image\/(jpeg|png|heic|heif);base64,(.+)$/);
-                if (!matches || matches[2].length > 500 * 1024) {
-                    return res.status(400).json({ error: 'Invalid or oversized image (max 500KB)' });
-                }
-                const buffer = Buffer.from(matches[2], 'base64');
-                const filePath = path.join(IMAGES_DIR, `task_${task.id}.${matches[1]}`);
-                await fs.writeFile(filePath, buffer);
-                task.picture = `/images/task_${task.id}.${matches[1]}`;
-            }
-            Object.assign(task, {
-                name: req.body.name !== undefined ? req.body.name : task.name,
-                size: req.body.size || task.size || 'small',
-                month: req.body.month !== undefined ? req.body.month : task.month,
-                recurring: req.body.recurring !== undefined ? req.body.recurring : task.recurring,
-                completed: req.body.completed !== undefined ? req.body.completed : task.completed,
-                completedDate: req.body.completedDate && !isNaN(new Date(req.body.completedDate)) ? req.body.completedDate : task.completed ? new Date().toISOString() : task.completedDate,
-                userName: req.body.userName !== undefined ? req.body.userName : task.userName
-            });
-            await retryOperation(async () => {
-                await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
-                await calculateTaskValues();
-            });
+            Object.assign(task, req.body);
+            task.value = task.value || 0; // Ensure value is defined
+            await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
+            await calculateTaskValues();
             res.status(200).send();
         } else {
             res.status(404).json({ error: 'Task not found' });
         }
     } catch (error) {
-        console.error(`Error updating task: ${error.message}`);
-        res.status(500).json({ error: `Failed to update task: ${error.message}` });
+        console.error('Error updating task:', error);
+        res.status(500).json({ error: 'Failed to update task' });
     }
 });
 
 app.delete('/api/tasks/:id', async (req, res) => {
-    console.log("Entering DELETE /api/tasks/:id");
     try {
         let tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
-        const task = tasks.find(t => t.id === req.params.id);
-        if (task) {
-            if (task.picture) {
-                try {
-                    await fs.unlink(path.join(IMAGES_DIR, path.basename(task.picture)));
-                } catch (err) {
-                    console.warn(`Failed to delete image file: ${err.message}`);
-                }
-            }
-            tasks = tasks.filter(t => t.id !== req.params.id);
-            await retryOperation(async () => {
-                await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
-                await calculateTaskValues();
-            });
-            res.status(200).send();
-        } else {
-            res.status(404).json({ error: 'Task not found' });
-        }
+        tasks = tasks.filter(task => task.id !== req.params.id);
+        await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
+        await calculateTaskValues();
+        res.status(200).send();
     } catch (error) {
-        console.error(`Error deleting task: ${error.message}`);
-        res.status(500).json({ error: `Failed to delete task: ${error.message}` });
+        console.error('Error deleting task:', error);
+        res.status(500).json({ error: 'Failed to delete task' });
     }
 });
 
 app.post('/api/reset', async (req, res) => {
-    console.log("Entering POST /api/reset");
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const now = new Date();
@@ -306,28 +227,22 @@ app.post('/api/reset', async (req, res) => {
         tasks.forEach(t => {
             if (t.recurring === 'none') {
                 t.completed = false;
-                if (t.picture) {
-                    try {
-                        fs.unlink(path.join(IMAGES_DIR, path.basename(t.picture))).catch(err => console.warn(`Failed to delete image file: ${err.message}`));
-                    }
-                    t.picture = null;
-                }
+                t.picture = null;
                 t.completedDate = null;
                 t.month = nextMonth;
-                t.size = t.size || 'small';
+                t.value = 0;
             }
         });
-        await retryOperation(async () => {
-            await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
-            await calculateTaskValues();
-        });
+        await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
+        await calculateTaskValues();
         res.status(200).send();
     } catch (error) {
-        console.error(`Error resetting tasks: ${error.message}`);
-        res.status(500).json({ error: `Failed to reset tasks: ${error.message}` });
+        console.error('Error resetting tasks:', error);
+        res.status(500).json({ error: 'Failed to reset tasks' });
     }
 });
 
+// Start server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     initTasksFile();
