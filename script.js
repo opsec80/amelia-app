@@ -314,7 +314,7 @@ function displaySubmissions(tasks) {
     const submissionList = document.getElementById('submission-list');
     submissionList.innerHTML = tasks.filter(t => t.completed).map(t => `
         <li>${t.name} by ${t.userName || 'Unknown'} ($${typeof t.value === 'number' ? t.value.toFixed(2) : '0.00'}, ${new Date(t.completedDate).toLocaleDateString()})
-        ${t.picture ? `<img src="${task.picture}" class="preview-image" alt="Submission">` : ''}
+        ${t.picture ? `<img src="${t.picture}" class="preview-image" alt="Submission">` : ''}
         </li>
     `).join('');
 }
