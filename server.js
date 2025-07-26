@@ -8,6 +8,7 @@ app.use(express.json({ limit: '5mb' }));
 app.use(express.static(__dirname));
 
 const TASKS_FILE = path.join(__dirname, 'data', 'tasks.json');
+let isWriting = false; // File lock flag
 
 async function initTasksFile() {
     try {
@@ -46,6 +47,8 @@ async function initTasksFile() {
 }
 
 async function calculateTaskValues() {
+    while (isWriting) await new Promise(resolve => setTimeout(resolve, 100)); // Wait if writing
+    isWriting = true;
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const weights = { 'extra-small': 1, 'small': 2, 'medium': 4, 'large': 8 };
@@ -57,10 +60,14 @@ async function calculateTaskValues() {
         await fs.writeFile(TASKS_FILE, JSON.stringify(tasks, null, 2));
     } catch (error) {
         console.error('Error calculating task values:', error);
+    } finally {
+        isWriting = false;
     }
 }
 
 async function generateRecurringTasks() {
+    while (isWriting) await new Promise(resolve => setTimeout(resolve, 100)); // Wait if writing
+    isWriting = true;
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const now = new Date();
@@ -69,8 +76,9 @@ async function generateRecurringTasks() {
         let updated = false;
         const nonGeneratedTasks = tasks.filter(task => !task.generated);
         const newTasks = [...nonGeneratedTasks];
-        // Find the highest numeric ID
-        const maxId = tasks.length > 0 ? Math.max(...tasks.map(t => parseInt(t.id) || 0)) : 0;
+        // Filter valid numeric IDs and find the highest
+        const validIds = tasks.map(t => parseInt(t.id)).filter(id => !isNaN(id) && id > 0);
+        const maxId = validIds.length > 0 ? Math.max(...validIds) : 0;
         let nextId = maxId + 1;
         nonGeneratedTasks.forEach(task => {
             if (task.month === month && task.recurring !== 'none') {
@@ -135,6 +143,8 @@ async function generateRecurringTasks() {
     } catch (error) {
         console.error('Error generating recurring tasks:', error);
         return false;
+    } finally {
+        isWriting = false;
     }
 }
 
@@ -166,9 +176,12 @@ app.get('/api/tasks/:id', async (req, res) => {
 });
 
 app.post('/api/tasks', async (req, res) => {
+    while (isWriting) await new Promise(resolve => setTimeout(resolve, 100));
+    isWriting = true;
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
-        const maxId = tasks.length > 0 ? Math.max(...tasks.map(t => parseInt(t.id) || 0)) : 0;
+        const validIds = tasks.map(t => parseInt(t.id)).filter(id => !isNaN(id) && id > 0);
+        const maxId = validIds.length > 0 ? Math.max(...validIds) : 0;
         const newId = (maxId + 1).toString();
         const task = { id: newId, ...req.body, completed: false, value: 0 };
         tasks.push(task);
@@ -178,10 +191,14 @@ app.post('/api/tasks', async (req, res) => {
     } catch (error) {
         console.error('Error adding task:', error);
         res.status(500).json({ error: 'Failed to add task' });
+    } finally {
+        isWriting = false;
     }
 });
 
 app.patch('/api/tasks/:id', async (req, res) => {
+    while (isWriting) await new Promise(resolve => setTimeout(resolve, 100));
+    isWriting = true;
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const task = tasks.find(t => t.id === req.params.id);
@@ -197,10 +214,14 @@ app.patch('/api/tasks/:id', async (req, res) => {
     } catch (error) {
         console.error('Error updating task:', error);
         res.status(500).json({ error: 'Failed to update task' });
+    } finally {
+        isWriting = false;
     }
 });
 
 app.delete('/api/tasks/:id', async (req, res) => {
+    while (isWriting) await new Promise(resolve => setTimeout(resolve, 100));
+    isWriting = true;
     try {
         let tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         tasks = tasks.filter(task => task.id !== req.params.id);
@@ -210,10 +231,14 @@ app.delete('/api/tasks/:id', async (req, res) => {
     } catch (error) {
         console.error('Error deleting task:', error);
         res.status(500).json({ error: 'Failed to delete task' });
+    } finally {
+        isWriting = false;
     }
 });
 
 app.post('/api/reset', async (req, res) => {
+    while (isWriting) await new Promise(resolve => setTimeout(resolve, 100));
+    isWriting = true;
     try {
         const tasks = JSON.parse(await fs.readFile(TASKS_FILE, 'utf8'));
         const now = new Date();
@@ -233,6 +258,8 @@ app.post('/api/reset', async (req, res) => {
     } catch (error) {
         console.error('Error resetting tasks:', error);
         res.status(500).json({ error: 'Failed to reset tasks' });
+    } finally {
+        isWriting = false;
     }
 });
 
